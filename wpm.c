@@ -99,23 +99,6 @@ int main() {
         char c = '\0';
         read(STDIN_FILENO, &c, 1);
 
-        if (c == '\033') {
-            char seq[3];
-            if (read(STDIN_FILENO, &seq[0], 1) == 0) continue;
-            if (read(STDIN_FILENO, &seq[1], 1) == 0) continue;
-
-            if (seq[0] == '[') {
-                if (seq[1] == '3' && read(STDIN_FILENO, &seq[2], 1) == 1 && seq[2] == '~') { // Delete key
-                    if (len > 0) {
-                        str[len-1] = '\0'; // Remove last character
-                        len--;
-                        str = realloc(str, len + 1); // Adjust memory allocation
-                    }
-                }
-            }
-            continue;
-        }
-
         if (c == 27) {
             break;
         }
