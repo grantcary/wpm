@@ -1,0 +1,1 @@
+lightweight CLI typing test
