@@ -3,6 +3,7 @@
 #include <termios.h>
 #include <unistd.h>
 #include <string.h>
+#include <stdbool.h>
 #include <time.h>
 #include <sys/time.h>
 
@@ -92,6 +93,8 @@ int main() {
     int elapsed;
     gettimeofday(&st, NULL);
 
+    bool wrong = false;
+
     while (1) {
         char c = '\0';
         read(STDIN_FILENO, &c, 1);
@@ -117,27 +120,37 @@ int main() {
             break;
         }
 
-        if (c >= 32 && c < 127) { // Printable characters
-            str = realloc(str, len + 2); // Increase the allocation for new character + null terminator
-            str[len] = c;
-            str[len + 1] = '\0';
-            len++;
-        } else if (c == 127) { // Backspace was pressed
-            if (len > 0) {
-                len--;
-                str[len] = '\0'; // Remove last character
-                str = realloc(str, len + 1); // Adjust memory allocation
-            }
-        }
-
-        if (c == word_buffer[0]) {
+        if (c == word_buffer[0] && strlen(incorrect_buffer) == 0) {
             // character correct
             // remove character from front of word buffer
             correct_chars++;
             word_buffer++;
+            wrong = false;
+        } else if (strlen(word_buffer) != 0){
+            wrong = true;
         }
 
-        if (c == ' ') {
+        if (c >= 32 && c < 127) { // Printable characters
+            if (!wrong) {
+                str = realloc(str, len + 2); // Increase the allocation for new character + null terminator
+                str[len] = c;
+                str[len + 1] = '\0';
+                len++;
+            } else {
+                incorrect_buffer = realloc(incorrect_buffer, incorrect_len + 2);
+                incorrect_buffer[incorrect_len] = c;
+                incorrect_buffer[incorrect_len + 1] = '\0';
+                incorrect_len++;
+            }
+        } else if (c == 127) { // Backspace was pressed
+            if (strlen(incorrect_buffer) != 0) {
+                incorrect_len--;
+                incorrect_buffer[incorrect_len] = '\0';
+                incorrect_buffer = realloc(incorrect_buffer, incorrect_len + 1);
+            }
+        }
+
+        if (c == ' ' && strlen(incorrect_buffer) == 0 && strlen(word_buffer) == 0) {
             if (strlen(word_buffer) == 0) {
                 correct_chars++;
             }
@@ -152,7 +165,7 @@ int main() {
         WPM = 12 * (correct_chars / elapsed);
 
         printf("\033[2K");
-        printf("%s\033[32m%s %s\033[0m %d", str, word_buffer, next_word, WPM);
+        printf("%s\033[31m%s\033[0m\033[32m%s %s\033[0m %d", str, incorrect_buffer, word_buffer, next_word, WPM);
         fflush(stdout);
         printf("\033[1G");
     }
