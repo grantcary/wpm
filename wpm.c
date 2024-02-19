@@ -52,17 +52,13 @@ int main() {
     enableRawMode(&orig_termios);
 
     printf("\033[2J\033[H");
-    printf("Press arrow keys or ESC to quit.\n");
+    printf("\033[33mPress ESC to quit.\033[0m\n");
 
-    char *str = (char *) malloc(1); // Start with space for the terminating null
-    str[0] = '\0'; // Initialize string as empty
+    char *str = (char *) malloc(1);
+    str[0] = '\0';
     size_t len = 0;
 
     char **words = readlines();
-    // while (*words != NULL) {
-    //     printf("%s\n", *words++);
-    // }
-
     char *word_buffer, *next_word;
 
     srand(time(0));
@@ -72,50 +68,42 @@ int main() {
     random = rand() % 100;
     next_word = words[random];
 
-    // while (!strcmp(word_buffer, next_word)) {
-    //     random = rand() % 100;
-    //     next_word = words[random];
-    // }
-
     printf("\033[2K");
-    printf("\033[32m%s %s\033[0m %lu", word_buffer, next_word, strlen(str));
+    printf("%s %s \033[33m0\033[0m", word_buffer, next_word);
     fflush(stdout);
     printf("\033[1G");
 
     char *incorrect_buffer = (char *) malloc(1);
     incorrect_buffer[0] = '\0';
     size_t incorrect_len = 0;
+    bool incorrect_chars = false;
 
-    int correct_chars = 0;
-    int WPM;
 
     struct timeval st, ct;
     int elapsed;
     gettimeofday(&st, NULL);
-
-    bool wrong = false;
+    int WPM;
 
     while (1) {
         char c = '\0';
         read(STDIN_FILENO, &c, 1);
 
-        if (c == 27) {
+        if (c == 27) { // ESC was pressed
             break;
         }
 
-        if (c == word_buffer[0] && strlen(incorrect_buffer) == 0) {
-            // character correct
-            // remove character from front of word buffer
-            correct_chars++;
-            word_buffer++;
-            wrong = false;
-        } else if (strlen(word_buffer) != 0){
-            wrong = true;
+        if (c == word_buffer[0] && strlen(incorrect_buffer) == 0) { // character correct
+            word_buffer++; // remove character from front of word buffer
+            incorrect_chars = false;
+        } else if (c == ' ' && strlen(word_buffer) == 0 && strlen(incorrect_buffer) == 0) {
+            incorrect_chars = false;
+        } else {
+            incorrect_chars = true;
         }
 
         if (c >= 32 && c < 127) { // Printable characters
-            if (!wrong) {
-                str = realloc(str, len + 2); // Increase the allocation for new character + null terminator
+            if (!incorrect_chars) {
+                str = realloc(str, len + 2);
                 str[len] = c;
                 str[len + 1] = '\0';
                 len++;
@@ -125,19 +113,13 @@ int main() {
                 incorrect_buffer[incorrect_len + 1] = '\0';
                 incorrect_len++;
             }
-        } else if (c == 127) { // Backspace was pressed
-            if (strlen(incorrect_buffer) != 0) {
-                incorrect_len--;
-                incorrect_buffer[incorrect_len] = '\0';
-                incorrect_buffer = realloc(incorrect_buffer, incorrect_len + 1);
-            }
+        } else if (c == 127 && strlen(incorrect_buffer) > 0) { // Backspace was pressed
+            incorrect_len--;
+            incorrect_buffer[incorrect_len] = '\0';
+            incorrect_buffer = realloc(incorrect_buffer, incorrect_len + 1);
         }
 
-        if (c == ' ' && strlen(incorrect_buffer) == 0 && strlen(word_buffer) == 0) {
-            if (strlen(word_buffer) == 0) {
-                correct_chars++;
-            }
-            // word correct, reset word buffer with new random word
+        if (c == ' ' && strlen(incorrect_buffer) == 0 && strlen(word_buffer) == 0) { // word correct, reset word buffer with new random word
             random = rand() % 100;
             word_buffer = next_word;
             next_word = words[random];
@@ -145,13 +127,17 @@ int main() {
 
         gettimeofday(&ct, NULL);
         elapsed = ct.tv_sec - st.tv_sec;
-        WPM = 12 * (correct_chars / elapsed);
+        WPM = 12 * (strlen(str) / elapsed);
 
         printf("\033[2K");
-        printf("%s\033[31m%s\033[0m\033[32m%s %s\033[0m %d", str, incorrect_buffer, word_buffer, next_word, WPM);
+        printf("\033[32m%s\033[0m\033[31m%s\033[0m%s %s \033[33m%d\033[0m", str, incorrect_buffer, word_buffer, next_word, WPM);
         fflush(stdout);
         printf("\033[1G");
     }
+    
+    printf("\033[2K");
+    fflush(stdout);
+    printf("\033[1G");
 
     disableRawMode(&orig_termios);
 
