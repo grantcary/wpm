@@ -44,6 +44,13 @@ char **readlines() {
     return arr;
 }
 
+void append_char(char c, char** str, size_t* len) {
+    *str = realloc(*str, *len + 2);
+    (*str)[*len] = c;
+    (*str)[*len + 1] = '\0';
+    (*len)++;
+}
+
 int main() {
     struct termios orig_termios;
 
@@ -76,8 +83,6 @@ int main() {
     char *incorrect_buffer = (char *) malloc(1);
     incorrect_buffer[0] = '\0';
     size_t incorrect_len = 0;
-    bool incorrect_chars = false;
-
 
     struct timeval st, ct;
     int elapsed;
@@ -92,37 +97,24 @@ int main() {
             break;
         }
 
-        if (c == word_buffer[0] && strlen(incorrect_buffer) == 0) { // character correct
-            word_buffer++; // remove character from front of word buffer
-            incorrect_chars = false;
-        } else if (c == ' ' && strlen(word_buffer) == 0 && strlen(incorrect_buffer) == 0) {
-            incorrect_chars = false;
-        } else {
-            incorrect_chars = true;
-        }
-
         if (c >= 32 && c < 127) { // Printable characters
-            if (!incorrect_chars) {
-                str = realloc(str, len + 2);
-                str[len] = c;
-                str[len + 1] = '\0';
-                len++;
+            if (c == word_buffer[0] && strlen(incorrect_buffer) == 0) { // character correct
+                word_buffer++; // remove character from front of word buffer
+                
+                append_char(c, &str, &len);
+            } else if (c == ' ' && strlen(word_buffer) == 0 && strlen(incorrect_buffer) == 0) { // word correct, reset word buffer with new random word
+                random = rand() % 100;
+                word_buffer = next_word;
+                next_word = words[random];
+
+                append_char(c, &str, &len);
             } else {
-                incorrect_buffer = realloc(incorrect_buffer, incorrect_len + 2);
-                incorrect_buffer[incorrect_len] = c;
-                incorrect_buffer[incorrect_len + 1] = '\0';
-                incorrect_len++;
+                append_char(c, &incorrect_buffer, &incorrect_len);
             }
-        } else if (c == 127 && strlen(incorrect_buffer) > 0) { // Backspace was pressed
+        } else if (c == 127 && strlen(incorrect_buffer) > 0) { // Backspace was pressed, only deletes characters from incorrect character buffer
             incorrect_len--;
             incorrect_buffer[incorrect_len] = '\0';
             incorrect_buffer = realloc(incorrect_buffer, incorrect_len + 1);
-        }
-
-        if (c == ' ' && strlen(incorrect_buffer) == 0 && strlen(word_buffer) == 0) { // word correct, reset word buffer with new random word
-            random = rand() % 100;
-            word_buffer = next_word;
-            next_word = words[random];
         }
 
         gettimeofday(&ct, NULL);
