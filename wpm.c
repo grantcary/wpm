@@ -32,7 +32,7 @@ char **readlines() {
     FILE *file = fopen("100words.txt", "r");
 
     char word[10];
-    int count;
+    int count = 0;
     while (fgets(word, sizeof(word), file)) {
         word[strcspn(word, "\n")] = 0;
         arr[count] = malloc(strlen(word) + 1);
@@ -62,7 +62,6 @@ int main() {
 
     printf("\033[2J\033[H");
     printf("\033[33mPress ESC to quit.\033[0m\n");
-    // printf("%d\n", termWidth);
 
     char *str = (char *) malloc(1);
     str[0] = '\0';
@@ -93,8 +92,6 @@ int main() {
     int WPM;
     int maxWPM = 0;
 
-    int count = 0;
-
     while (1) {
         char c = '\0';
         read(STDIN_FILENO, &c, 1);
@@ -108,18 +105,12 @@ int main() {
                 word_buffer++; // remove character from front of word buffer
                 
                 append_char(c, &str, &len);
-                
             } else if (c == ' ' && strlen(word_buffer) == 0 && strlen(incorrect_buffer) == 0) { // word correct, reset word buffer with new random word
                 random = rand() % 100;
                 word_buffer = next_word;
                 next_word = words[random];
 
                 append_char(c, &str, &len);
-                count++;
-                if (count == 10) {
-                    printf("\033[2K\r");
-                    count = 0;
-                }
             } else {
                 append_char(c, &incorrect_buffer, &incorrect_len);
             }
