@@ -6,6 +6,9 @@
 #include <stdbool.h>
 #include <time.h>
 #include <sys/time.h>
+#include <sys/ioctl.h>
+
+#define max(a, b) (a > b ? a : b)
 
 void enableRawMode(struct termios *orig_termios) {
     struct termios raw = *orig_termios;
@@ -17,13 +20,10 @@ void disableRawMode(struct termios *orig_termios) {
     tcsetattr(STDIN_FILENO, TCSAFLUSH, orig_termios);
 }
 
-void printRandoms(int lower, int upper, int count) { 
-    int i; 
-    for (i = 0; i < count; i++) { 
-        int num = (rand() % 
-        (upper - lower + 1)) + lower; 
-        printf("%d ", num); 
-    } 
+int getTerminalWidth() {
+    struct winsize w;
+    ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+    return w.ws_col;
 }
 
 char **readlines() {
@@ -58,8 +58,11 @@ int main() {
 
     enableRawMode(&orig_termios);
 
+    int termWidth = getTerminalWidth();
+
     printf("\033[2J\033[H");
     printf("\033[33mPress ESC to quit.\033[0m\n");
+    // printf("%d\n", termWidth);
 
     char *str = (char *) malloc(1);
     str[0] = '\0';
@@ -88,6 +91,9 @@ int main() {
     int elapsed;
     gettimeofday(&st, NULL);
     int WPM;
+    int maxWPM = 0;
+
+    int count = 0;
 
     while (1) {
         char c = '\0';
@@ -102,12 +108,18 @@ int main() {
                 word_buffer++; // remove character from front of word buffer
                 
                 append_char(c, &str, &len);
+                
             } else if (c == ' ' && strlen(word_buffer) == 0 && strlen(incorrect_buffer) == 0) { // word correct, reset word buffer with new random word
                 random = rand() % 100;
                 word_buffer = next_word;
                 next_word = words[random];
 
                 append_char(c, &str, &len);
+                count++;
+                if (count == 10) {
+                    printf("\033[2K\r");
+                    count = 0;
+                }
             } else {
                 append_char(c, &incorrect_buffer, &incorrect_len);
             }
@@ -120,6 +132,12 @@ int main() {
         gettimeofday(&ct, NULL);
         elapsed = ct.tv_sec - st.tv_sec;
         WPM = 12 * (strlen(str) / elapsed);
+        maxWPM = max(WPM, maxWPM);
+
+        int totalLength = strlen(str) + strlen(incorrect_buffer) + strlen(word_buffer) + strlen(next_word) + 10; // 10 for spaces and WPM display
+        if (totalLength > termWidth) {
+            break;
+        }
 
         printf("\033[2K");
         printf("\033[32m%s\033[0m\033[31m%s\033[0m%s %s \033[33m%d\033[0m", str, incorrect_buffer, word_buffer, next_word, WPM);
@@ -127,6 +145,7 @@ int main() {
         printf("\033[1G");
     }
     
+    printf("\n\033[34mFinal Speed: %d | Max Speed: %d\033[0m\n", WPM, maxWPM);
     printf("\033[2K");
     fflush(stdout);
     printf("\033[1G");
